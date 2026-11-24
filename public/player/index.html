@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<!--
+  HI-FI WEB PLAYER  (zero-build, 3 arquivos: index.html, style.css, app.js)
+  USB Drive: copie os 3 arquivos para UMA pasta no pendrive e dê duplo clique em index.html.
+  GitHub Pages: crie um repositório, envie os 3 arquivos na raiz e ative
+  Settings > Pages > Deploy from branch > main / (root).
+-->
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hi-Fi Web Player — Winamp Glass</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div id="aura" aria-hidden="true"></div>
+
+  <main id="app">
+    <div class="col" id="colLeft">
+
+      <!-- ===== PLAYER DECK ===== -->
+      <section id="deck" class="panel glass" aria-label="Player de áudio">
+        <header class="titlebar">
+          <div class="leds" aria-hidden="true">
+            <span id="ledPlay" class="led led-play" title="Tocando"></span>
+            <span id="ledBeat" class="led led-beat" title="BEAT"></span>
+            <span id="ledHi" class="led led-hi" title="Agudos"></span>
+            <span id="ledFft" class="led led-fft" title="FFT ao vivo"></span>
+          </div>
+          <span class="ttl">HI-FI WEB PLAYER</span>
+          <span class="tag">BEAT</span>
+          <button id="btnImmersive" class="btn mini" type="button" title="Modo imersivo (Esc para sair)" aria-label="Modo imersivo">⛶</button>
+        </header>
+
+        <div class="deck-top">
+          <div id="coverWrap">
+            <div id="coverHalo"></div>
+            <img id="cover" alt="Capa do álbum" width="120" height="120">
+          </div>
+          <div id="lcd">
+            <div id="clock" title="Clique para alternar tempo restante">00:00</div>
+            <div id="marquee"><span id="marqueeText">Informe o artista e um trecho da música para começar</span></div>
+            <div id="hud">
+              <span id="hudMode" class="chip">PARADO</span>
+              <span id="hudStyle" class="chip">Visual: —</span>
+              <span id="hudYear" class="chip">Ano —</span>
+              <span id="hudGenre" class="chip">Gênero —</span>
+              <span id="hudFmt" class="chip">—</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="stageSlot">
+          <div id="stage">
+            <canvas id="viz"></canvas>
+            <button id="btnExit" class="btn mini" type="button" hidden aria-label="Sair do modo imersivo">✕ Esc</button>
+          </div>
+          <div id="embedBox" hidden></div>
+        </div>
+
+        <div class="seekrow">
+          <span id="timeCur" class="time">0:00</span>
+          <input id="seek" type="range" min="0" max="1000" value="0" step="1" aria-label="Posição">
+          <span id="timeDur" class="time">0:00</span>
+        </div>
+
+        <div class="controls">
+          <button id="btnPlay" class="btn ctl" type="button" aria-label="Play">▶</button>
+          <button id="btnPause" class="btn ctl" type="button" aria-label="Pausar">❚❚</button>
+          <button id="btnStop" class="btn ctl" type="button" aria-label="Parar">■</button>
+          <button id="btnLoop" class="btn ctl" type="button" aria-label="Repetir" aria-pressed="false">⟲</button>
+          <button id="btnMute" class="btn ctl" type="button" aria-label="Mudo" aria-pressed="false">🔊</button>
+          <label class="ctl-lab"><span>VOL</span><input id="vol" type="range" min="0" max="1" step="0.01" value="0.95" aria-label="Volume"></label>
+          <label class="ctl-lab"><span>SPD</span>
+            <select id="speed" aria-label="Velocidade">
+              <option value="0.75">0.75x</option><option value="1" selected>1.0x</option>
+              <option value="1.25">1.25x</option><option value="1.5">1.5x</option><option value="2">2.0x</option>
+            </select>
+          </label>
+          <label class="ctl-lab"><span>VIS</span>
+            <select id="vizStyle" aria-label="Estilo visual">
+              <option value="auto" selected>Gênero Auto</option>
+              <option value="1">1 · Winamp LED</option>
+              <option value="2">2 · Glow Simétrico</option>
+              <option value="3">3 · Reator de Graves</option>
+              <option value="4">4 · Aurora Melódica</option>
+              <option value="5">5 · Cyber Grid</option>
+              <option value="6">6 · Osciloscópio CRT</option>
+            </select>
+          </label>
+        </div>
+
+        <div id="statusBar" role="status" aria-live="polite">Pronto.</div>
+        <audio id="audio" preload="metadata" controlslist="nodownload" playsinline></audio>
+      </section>
+
+      <!-- ===== CRÉDITOS & HISTÓRIA ===== -->
+      <section id="infoPanel" class="panel glass" aria-label="Créditos e história">
+        <h2>Créditos &amp; história da composição</h2>
+        <dl class="credits">
+          <div><dt>Intérprete</dt><dd id="infoPerformer">—</dd></div>
+          <div><dt>Compositor(es)</dt><dd id="infoComposer">—</dd></div>
+          <div><dt>Letrista(s)</dt><dd id="infoLyricist">—</dd></div>
+          <div><dt>Autor(es)</dt><dd id="infoWriter">—</dd></div>
+          <div><dt>Arranjador(es)</dt><dd id="infoArranger">—</dd></div>
+        </dl>
+        <div id="historyBox">
+          <div id="historyText">Nenhuma faixa selecionada.</div>
+          <a id="historyLink" href="#" target="_blank" rel="noopener noreferrer" hidden>Fonte</a>
+        </div>
+      </section>
+
+      <!-- ===== GERADOR M3U ===== -->
+      <section id="m3uPanel" class="panel glass" aria-label="Gerador de playlist M3U">
+        <h2>Playlist .m3u enriquecida <span id="m3uCount" class="badge">0</span></h2>
+        <pre id="m3uPreview" tabindex="0">#EXTM3U</pre>
+        <div class="row wrap">
+          <button id="btnM3uAdd" class="btn" type="button">＋ Faixa atual</button>
+          <button id="btnM3uCopy" class="btn" type="button">Copiar</button>
+          <button id="btnM3uDownload" class="btn" type="button">Baixar playlist.m3u</button>
+          <button id="btnM3uClear" class="btn ghost" type="button">Limpar</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="col" id="colRight">
+
+      <!-- ===== BUSCA ===== -->
+      <section id="searchPanel" class="panel glass" aria-label="Busca">
+        <h2>Buscar música</h2>
+        <form id="searchForm" autocomplete="off" novalidate>
+          <div class="field">
+            <label for="artistInput">Nome exato do cantor/artista</label>
+            <input id="artistInput" type="text" maxlength="80" required placeholder="Ex.: Roberto Carlos" aria-describedby="artistHint">
+            <p id="artistHint" class="hint warn">⚠ Digite o nome EXATO do cantor (com acentos e sobrenome). Nomes incompletos ou com erro não retornam resultados.</p>
+          </div>
+          <div class="field">
+            <label for="songInput">Trecho da música (título ou parte da letra)</label>
+            <input id="songInput" type="text" maxlength="120" required placeholder="Ex.: Detalhes ou &quot;se alguém lhe perguntar&quot;" aria-describedby="songHint">
+            <p id="songHint" class="hint">Informe o título ou um trecho da letra para trazer as melhores respostas.</p>
+          </div>
+          <div class="row">
+            <button id="btnSearch" class="btn primary" type="submit">Buscar</button>
+            <p id="formMsg" role="alert"></p>
+          </div>
+        </form>
+
+        <div id="artistStatus" class="statusline">Aguardando busca…</div>
+
+        <div id="resultsPanel">
+          <div id="resultsHead">
+            <strong id="resultsTitle">Resultados</strong>
+            <span id="resultsCount" class="badge">0</span>
+            <button id="btnToggleResults" class="btn small" type="button" hidden>Expandir resultados (0)</button>
+          </div>
+          <div id="activeBar"><span id="activeTitle">Nenhuma faixa ativa</span></div>
+          <div id="resultsBody" tabindex="0"><p class="empty">Os resultados aparecerão aqui.</p></div>
+        </div>
+
+        <div class="linkrow">
+          <input id="urlInput" type="text" placeholder="Link direto (mp3, m3u, YouTube, SoundCloud, Spotify)" aria-label="Link direto">
+          <button id="btnLoadUrl" class="btn" type="button">Carregar</button>
+        </div>
+      </section>
+
+      <!-- ===== LETRA ===== -->
+      <section id="lyricsPanel" class="panel glass" aria-label="Letra">
+        <h2>Letra &amp; tradução (pt-BR)</h2>
+        <div class="lyhead">
+          <span id="langBadge" class="badge">Idioma: —</span>
+          <span id="trStatus">—</span>
+          <button id="btnTranslate" class="btn small" type="button">Traduzir</button>
+          <a id="gtLink" class="btn small ghost" href="https://translate.google.com/?sl=auto&amp;tl=pt&amp;op=translate" target="_blank" rel="noopener noreferrer">Google Tradutor</a>
+        </div>
+        <div class="lygrid">
+          <div class="lycol">
+            <h3>Original (editável)</h3>
+            <textarea id="lyricsOrig" spellcheck="false" placeholder="A letra original aparece aqui automaticamente."></textarea>
+          </div>
+          <div class="lycol">
+            <h3>Português (Brasil)</h3>
+            <div id="lyricsPt" tabindex="0"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
